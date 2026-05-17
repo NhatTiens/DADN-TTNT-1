@@ -1,61 +1,70 @@
-#include <task_handler.h>
+#include "task_handler.h"
+#include "global.h"
+#include <ArduinoJson.h>
 
-void handleWebSocketMessage(String message)
-{
-    Serial.println(message);
-    StaticJsonDocument<256> doc;
+extern SystemState* appState;
+extern void Save_info_File(String wifi_ssid, String wifi_pass, String CORE_IOT_TOKEN, String CORE_IOT_SERVER, String CORE_IOT_PORT);
 
-    DeserializationError error = deserializeJson(doc, message);
-    if (error)
-    {
-        Serial.println("❌ Lỗi parse JSON!");
+#define FAN_PIN 6
+
+void handleWebSocketMessage(String msg) {
+    DynamicJsonDocument doc(1024);
+    DeserializationError error = deserializeJson(doc, msg);
+    if (error) {
+        Serial.printf("JSON Parse Error: %s\n", error.c_str());
         return;
     }
-    JsonObject value = doc["value"];
-    if (doc["page"] == "device")
-    {
-        if (!value.containsKey("gpio") || !value.containsKey("status"))
-        {
-            Serial.println("⚠️ JSON thiếu thông tin gpio hoặc status");
-            return;
+
+    String page = doc["page"].as<String>();
+
+    if (page == "device") {
+        String dev = doc["value"]["device"].as<String>();
+        bool status = doc["value"]["status"].as<bool>();
+
+        if (xSemaphoreTake(appState->dataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            if (appState->isAutoMode == false) { 
+                if (dev == "fan") {
+                    appState->fanState = status;
+                    pinMode(FAN_PIN, OUTPUT);
+                    digitalWrite(FAN_PIN, status ? HIGH : LOW);
+                    Serial.println(status ? "Web: Bật Quạt" : "Web: Tắt Quạt");
+                } 
+                else if (dev == "led") {
+                    appState->ledState = status;
+                    Serial.println(status ? "Web: Bật LED" : "Web: Tắt LED");
+                }
+                else if (dev == "neo") {
+                    appState->neoState = status;
+                    Serial.println(status ? "Web: Bật NEO" : "Web: Tắt NEO");
+                }
+            } else {
+                Serial.println("Hệ thống đang ở chế độ AUTO!");
+            }
+            xSemaphoreGive(appState->dataMutex);
         }
-
-        int gpio = value["gpio"];
-        String status = value["status"].as<String>();
-
-        Serial.printf("⚙️ Điều khiển GPIO %d → %s\n", gpio, status.c_str());
-        pinMode(gpio, OUTPUT);
-        if (status.equalsIgnoreCase("ON"))
-        {
-            digitalWrite(gpio, HIGH);
-            Serial.printf("🔆 GPIO %d ON\n", gpio);
+    } 
+    else if (page == "auto") {
+        if (xSemaphoreTake(appState->dataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            appState->isAutoMode = doc["value"]["mode"].as<bool>();
+            Serial.println(appState->isAutoMode ? "Chuyen sang AUTO" : "Chuyen sang MANUAL");
+            xSemaphoreGive(appState->dataMutex);
         }
-        else if (status.equalsIgnoreCase("OFF"))
-        {
-            digitalWrite(gpio, LOW);
-            Serial.printf("💤 GPIO %d OFF\n", gpio);
+    } 
+    else if (page == "setting") {
+        String ssid = doc["value"]["ssid"].as<String>();
+        String pass = doc["value"]["password"].as<String>();
+        String token = doc["value"]["token"].as<String>();
+        String server = doc["value"]["server"].as<String>();
+        String port = doc["value"]["port"].as<String>();
+
+        if (xSemaphoreTake(appState->dataMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            appState->wifiSSID = ssid; appState->wifiPass = pass;
+            appState->coreIotToken = token; appState->coreIotServer = server;
+            appState->coreIotPort = port;
+            
+            appState->needsRestart = true;
+            xSemaphoreGive(appState->dataMutex);
         }
-    }
-    else if (doc["page"] == "setting")
-    {
-        String WIFI_SSID = doc["value"]["ssid"].as<String>();
-        String WIFI_PASS = doc["value"]["password"].as<String>();
-        String CORE_IOT_TOKEN = doc["value"]["token"].as<String>();
-        String CORE_IOT_SERVER = doc["value"]["server"].as<String>();
-        String CORE_IOT_PORT = doc["value"]["port"].as<String>();
-
-        Serial.println("📥 Nhận cấu hình từ WebSocket:");
-        Serial.println("SSID: " + WIFI_SSID);
-        Serial.println("PASS: " + WIFI_PASS);
-        Serial.println("TOKEN: " + CORE_IOT_TOKEN);
-        Serial.println("SERVER: " + CORE_IOT_SERVER);
-        Serial.println("PORT: " + CORE_IOT_PORT);
-
-        // 👉 Gọi hàm lưu cấu hình
-        Save_info_File(WIFI_SSID, WIFI_PASS, CORE_IOT_TOKEN, CORE_IOT_SERVER, CORE_IOT_PORT);
-
-        // Phản hồi lại client (tùy chọn)
-        String msg = "{\"status\":\"ok\",\"page\":\"setting_saved\"}";
-        ws.textAll(msg);
+        Save_info_File(ssid, pass, token, server, port);
     }
 }
