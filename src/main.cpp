@@ -20,6 +20,16 @@ void setup()
 {
   Serial.begin(115200);
   check_info_File(0);
+  xBinarySemaphoreInternet = xSemaphoreCreateBinary();
+  queueLED = xQueueCreate(5, sizeof(SensorData));
+  queueNeo = xQueueCreate(5, sizeof(SensorData));
+  dataQueue = xQueueCreate(5, sizeof(SensorData));
+  queueCoreIoT = xQueueCreate(5, sizeof(SensorData));
+  queueML = xQueueCreate(5, sizeof(SensorData));
+
+  if (!queueLED || !queueNeo || !dataQueue) {
+    Serial.println("Queue create failed!");
+  }
 
   xTaskCreate(led_blinky, "Task LED Blink", 2048, NULL, 2, NULL);
   xTaskCreate(neo_blinky, "Task NEO Blink", 2048, NULL, 2, NULL);
@@ -28,6 +38,7 @@ void setup()
   xTaskCreate(tiny_ml_task, "Tiny ML Task", 8192, NULL, 2, NULL);
   xTaskCreate(coreiot_task, "CoreIOT Task" ,4096  ,NULL  ,2 , NULL);
   xTaskCreate(Task_Toogle_BOOT, "Task_Toogle_BOOT", 4096, NULL, 2, NULL);
+  xTaskCreate(lcd_task, "LCD Task", 2048, NULL, 2, NULL);
 }
 
 void loop()
