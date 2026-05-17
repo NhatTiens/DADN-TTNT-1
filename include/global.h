@@ -6,9 +6,6 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 
-extern float glob_temperature;
-extern float glob_humidity;
-
 extern String WIFI_SSID;
 extern String WIFI_PASS;
 extern String CORE_IOT_TOKEN;
@@ -18,9 +15,15 @@ extern String CORE_IOT_PORT;
 extern boolean isWifiConnected;
 extern SemaphoreHandle_t xBinarySemaphoreInternet;
 
-
-extern float glob_temperature;
-extern float glob_humidity;
+typedef struct {
+    float temp;
+    float hum;
+} SensorData;
+extern QueueHandle_t queueLED;
+extern QueueHandle_t queueNeo;
+extern QueueHandle_t dataQueue;
+extern QueueHandle_t queueCoreIoT;
+extern QueueHandle_t queueML;
 
 extern bool tinyML_Anomaly;
 #endif
