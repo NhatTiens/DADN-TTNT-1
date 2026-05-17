@@ -6,6 +6,6 @@
 #include "global.h"
 
 void temp_humi_monitor(void *pvParameters);
-
+void lcd_task(void *pvParameters);
 
 #endif
