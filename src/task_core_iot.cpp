@@ -26,7 +26,7 @@ RPC_Response setLedSwitchValue(const RPC_Data &data)
     
     return RPC_Response("setLedSwitchValue", newState);
 }
-
+ 
 const std::array<RPC_Callback, 1U> callbacks = {
     RPC_Callback{"setLedSwitchValue", setLedSwitchValue}
 };
