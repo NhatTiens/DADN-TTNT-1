@@ -76,7 +76,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print("Unknown method: ");
     Serial.println(method);
   }
-}
+} 
 
 
 void setup_coreiot(){

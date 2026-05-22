@@ -17,3 +17,4 @@ QueueHandle_t queueNeo = NULL;
 QueueHandle_t dataQueue = NULL;
 QueueHandle_t queueCoreIoT = NULL;
 QueueHandle_t queueML = NULL;
+
